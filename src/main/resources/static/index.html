@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta Post Performans Analizi</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #f0f2f5;
+            color: #1c1e21;
+            line-height: 1.5;
+        }
+        header {
+            background: #1877f2;
+            color: white;
+            padding: 1.5rem 2rem;
+        }
+        header h1 { font-size: 1.5rem; font-weight: 600; }
+        header p { opacity: 0.9; margin-top: 0.25rem; font-size: 0.95rem; }
+        main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: #1877f2;
+            border-bottom: 2px solid #e4e6eb;
+            padding-bottom: 0.5rem;
+        }
+        .summary-box {
+            background: #e7f3ff;
+            border-left: 4px solid #1877f2;
+            padding: 1rem 1.25rem;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.95rem;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid #e4e6eb; }
+        th { background: #f0f2f5; font-weight: 600; color: #65676b; }
+        tr:hover td { background: #f7f8fa; }
+        .badge {
+            display: inline-block;
+            background: #1877f2;
+            color: white;
+            border-radius: 12px;
+            padding: 0.15rem 0.6rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .badge.gold { background: #f5a623; }
+        .badge.silver { background: #9ca3af; }
+        .badge.bronze { background: #cd7f32; }
+        .message-cell { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .error {
+            background: #ffebe9;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+        }
+        .warning {
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            color: #7a5c00;
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1.25rem;
+        }
+        .loading { text-align: center; padding: 3rem; color: #65676b; }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .stat-item {
+            background: #f0f2f5;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            text-align: center;
+        }
+        .stat-item .value { font-size: 1.5rem; font-weight: 700; color: #1877f2; }
+        .stat-item .label { font-size: 0.8rem; color: #65676b; }
+        footer {
+            text-align: center;
+            padding: 1rem;
+            color: #65676b;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Meta Graph API — Post Performans Analizi</h1>
+    <p>Son 20 post üzrə engagement hesabatı</p>
+</header>
+<main>
+    <div id="content" class="loading">Məlumatlar yüklənir...</div>
+</main>
+<footer>SocialMediaAnalyzer &copy; 2026</footer>
+
+<script>
+    const DAY_NAMES = {
+        MONDAY: 'Bazar ertəsi', TUESDAY: 'Çərşənbə axşamı', WEDNESDAY: 'Çərşənbə',
+        THURSDAY: 'Cümə axşamı', FRIDAY: 'Cümə', SATURDAY: 'Şənbə', SUNDAY: 'Bazar'
+    };
+
+    function truncate(text, max) {
+        if (!text) return '(Mətn yoxdur)';
+        return text.length <= max ? text : text.substring(0, max - 3) + '...';
+    }
+
+    function formatDate(iso) {
+        if (!iso) return '—';
+        return iso.replace('T', ' ').substring(0, 16);
+    }
+
+    function badgeClass(rank) {
+        if (rank === 1) return 'badge gold';
+        if (rank === 2) return 'badge silver';
+        if (rank === 3) return 'badge bronze';
+        return 'badge';
+    }
+
+    async function loadAnalysis() {
+        const content = document.getElementById('content');
+        try {
+            const res = await fetch('/api/analysis');
+            const data = await res.json();
+
+            if (!res.ok) {
+                content.innerHTML = `<div class="error"><strong>Xəta:</strong> ${data.error || 'Naməlum xəta'}</div>`;
+                return;
+            }
+
+            const totalLikes = data.allPosts.reduce((s, p) => s + p.likeCount, 0);
+            const totalComments = data.allPosts.reduce((s, p) => s + p.commentCount, 0);
+            const totalEngagement = totalLikes + totalComments;
+            const avgEngagement = (totalEngagement / data.allPosts.length).toFixed(1);
+
+            const demoBanner = data.dataSource === 'demo'
+                ? `<div class="warning"><strong>Demo rejimi:</strong> '${data.accountName}' hesabından API ilə post alınmadı. Analiz nümunə məlumatlarla göstərilir. Real məlumat üçün Facebook səhifə token-i lazımdır.</div>`
+                : '';
+
+            content.innerHTML = `
+                ${demoBanner}
+                <div class="card">
+                    <h2>Ümumi Statistika — ${data.accountName || 'Hesab'}</h2>
+                    <div class="stat-grid">
+                        <div class="stat-item"><div class="value">${data.allPosts.length}</div><div class="label">Post sayı</div></div>
+                        <div class="stat-item"><div class="value">${totalLikes}</div><div class="label">Cəmi like</div></div>
+                        <div class="stat-item"><div class="value">${totalComments}</div><div class="label">Cəmi şərh</div></div>
+                        <div class="stat-item"><div class="value">${avgEngagement}</div><div class="label">Orta engagement</div></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Qısa Nəticə</h2>
+                    <div class="summary-box">${data.summary}</div>
+                </div>
+
+                <div class="card">
+                    <h2>Top 3 Post (Engagement)</h2>
+                    <table>
+                        <thead><tr><th>#</th><th>Mətn</th><th>Tarix</th><th>Like</th><th>Şərh</th><th>Engagement</th></tr></thead>
+                        <tbody>
+                            ${data.topPostsByEngagement.map((p, i) => `
+                                <tr>
+                                    <td><span class="${badgeClass(i + 1)}">${i + 1}</span></td>
+                                    <td class="message-cell" title="${p.message || ''}">${truncate(p.message, 60)}</td>
+                                    <td>${formatDate(p.createdTime)}</td>
+                                    <td>${p.likeCount}</td>
+                                    <td>${p.commentCount}</td>
+                                    <td><strong>${p.likeCount + p.commentCount}</strong></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h2>Günlər Üzrə Like Statistikası</h2>
+                    <table>
+                        <thead><tr><th>Gün</th><th>Post sayı</th><th>Cəmi like</th><th>Orta like/post</th></tr></thead>
+                        <tbody>
+                            ${data.likesByDayOfWeek.map(d => `
+                                <tr>
+                                    <td>${DAY_NAMES[d.day] || d.day}</td>
+                                    <td>${d.postCount}</td>
+                                    <td>${d.totalLikes}</td>
+                                    <td><strong>${d.averageLikes.toFixed(1)}</strong></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h2>Bütün Postlar</h2>
+                    <table>
+                        <thead><tr><th>#</th><th>Mətn</th><th>Tarix</th><th>Like</th><th>Şərh</th><th>Engagement</th></tr></thead>
+                        <tbody>
+                            ${data.allPosts.map((p, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td class="message-cell" title="${p.message || ''}">${truncate(p.message, 60)}</td>
+                                    <td>${formatDate(p.createdTime)}</td>
+                                    <td>${p.likeCount}</td>
+                                    <td>${p.commentCount}</td>
+                                    <td>${p.likeCount + p.commentCount}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } catch (err) {
+            content.innerHTML = `<div class="error"><strong>Əlaqə xətası:</strong> ${err.message}</div>`;
+        }
+    }
+
+    loadAnalysis();
+</script>
+</body>
+</html>
